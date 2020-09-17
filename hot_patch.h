@@ -3,7 +3,7 @@
 #include <linux/cpu.h>
 #include <linux/spinlock.h>
 
-#define DRIVER_VERSION	"0.1.1"
+#define DRIVER_VERSION	"0.1"
 #define DRIVER_AUTHOR	"Shannon_Softdept_Group1"
 #define DRIVER_NAME		"shannon"
 #define DRIVER_DESC		"Hot Patch Beta for #4412"
