@@ -30,6 +30,31 @@ void add_sb_to_wait_erase_list(struct shannon_sb *sb, struct shannon_list_head *
 
 }
 
+static int check_driver_addr(void)
+{
+	struct module *shannon = NULL;
+	char *addr = NULL;
+	shannon = find_module(DRIVER_NAME);
+	if (!shannon) {
+		printk(KERN_INFO "shannon already removed!!!.\n");
+		return -1;
+	}
+	addr = (char *)symbol.find(shannon, "add_sb_to_wait_erase_list");
+	if (addr != symbol.src_fun_addr) {
+		printk(KERN_WARNING "src_fun_addr dont't match!!!, "
+				"pre: %p, cur: %p!!!.\n",	\
+				symbol.src_fun_addr, addr);
+		return -1;
+	}
+	return 0;
+}
+
+static void hook_src_fun(struct shannon_sb *sb, struct shannon_list_head *sb_list)
+{
+	if (!check_driver_addr())
+		add_sb_to_wait_erase_list(sb, sb_list);
+}
+
 static int init_symbol_addr(void)
 {
 	struct module *shannon = NULL;
@@ -74,10 +99,9 @@ static void hot_patch_register(void)
 	unsigned char call_inst[INST_SIZE];
 	int offset;
 	memcpy(symbol.restore_inst, symbol.src_fun_addr, INST_SIZE);
-	offset = (int)((long)add_sb_to_wait_erase_list -	\
+	offset = (int)((long)hook_src_fun -	\
 			((long)symbol.src_fun_addr + INST_SIZE));
 
-	call_inst[0] = JMP_INSTRUCT;
 	(*(int *)(&call_inst[1])) = offset;
 	get_online_cpus();
 	mutex_lock(symbol.my_text_mutex);
@@ -99,20 +123,8 @@ static int __init hot_patch_init(void)
 
 static void __exit hot_patch_exit(void)
 {
-	struct module *shannon = NULL;
-	char *addr = NULL;
-	shannon = find_module(DRIVER_NAME);
-	if (!shannon) {
-		printk(KERN_INFO "shannon already removed!!!.\n");
+	if (check_driver_addr())
 		return;
-	}
-	addr = (char *)symbol.find(shannon, "add_sb_to_wait_erase_list");
-	if (addr != symbol.src_fun_addr) {
-		printk(KERN_WARNING "src_fun_addr dont't match!!!, "
-				"pre: %p, cur: %p!!!.\n",	\
-				symbol.src_fun_addr, addr);
-		return;
-	}
 	get_online_cpus();
 	mutex_lock(symbol.my_text_mutex);
 	symbol.mem_remap(symbol.src_fun_addr, symbol.restore_inst, INST_SIZE);
