@@ -2,11 +2,12 @@
 #include <linux/kallsyms.h>
 #include <linux/cpu.h>
 #include <linux/spinlock.h>
+#include <linux/list.h>
 
-#define DRIVER_VERSION	"0.1"
+#define DRIVER_VERSION	"0.1.1"
 #define DRIVER_AUTHOR	"Shannon_Softdept_Group1"
 #define DRIVER_NAME		"shannon"
-#define DRIVER_DESC		"Hot Patch Beta for #4412"
+#define DRIVER_DESC		"Hot Patch Beta for #4412 1st"
 #define SHANNON_VERSION_330	"3.3.0"
 #define SHANNON_VERSION_331	"3.3.1"
 #define GC_THRESHOLD_N1L	23
@@ -14,6 +15,12 @@
 #define JMP_INSTRUCT		0xe9
 #define WRITE_REQS_FOR_GC_THRESHOLD	(200000)
 #define RESERVE_MEM(bytes) char mem[bytes] __attribute__ ((aligned(8)))
+#define shannon_info(format, arg...)			\
+	printk(KERN_ERR "shn_info: " format, ##arg)
+#define shannon_warn(format, arg...)			\
+	printk(KERN_ERR "shn_warn: %s(): " format, __func__, ##arg)
+#define shannon_err(format, arg...)			\
+	printk(KERN_ERR "shn_err: %s(): " format, __func__, ##arg)
 /*
  * text_poke_smp - Update instructions on a live kernel on SMP
  * @addr: address to modify
@@ -39,7 +46,10 @@ struct shannon_dev {
 	int free_blkcnt; //9872
 	char reserved2[588];
 	int wait_erased_blkcnt; //10464
-	char reserved3[2140];
+	char reserved3[324];
+	int gc_thread_state; //10792
+	char reserved4[1796];
+	struct shannon_list_head list;//12592
 	char cdev_name[16]; //12608
 };
 
@@ -53,6 +63,7 @@ struct shannon_sb {
 
 struct kallsyms_lookup_symbol {
 	unsigned char restore_inst[INST_SIZE]; //instruction
+	struct shannon_list_head *dev_addr;
 	struct mutex *my_text_mutex;
 	char *src_fun_addr;
 	my_text_poke_smp mem_remap;
